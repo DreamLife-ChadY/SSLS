@@ -21,16 +21,46 @@
 #| \__/\ (_| | | | | (_| | (_| | | | |  __/ \_/ |.___/ / \_/ |.___/ /
 #\____/\__,_|_| |_|\__,_|\__,_|_| |_|\___\_____/\____/\_____/\____/
 
-#Documentation sur github: 
+#Documentation sur github:
 
 
 on load:
    set {sql} to the database "mysql://localhost:3306/skripts?user=root&password="
 
+options:
+  logo: &7[&6SSLS&7] &3>> &f
+
 command /register [<text>]:
 	trigger:
 		if arg 1 is set:
+      set {key.%player's uuid%.clear} to arg 1
 			set {profil.%player's uuid%.pwd} to arg 1 hashed with MD5
 			set {profil.%player's uuid%.pwd} to {profil.%player's uuid%.pwd} hashed with SHA-256
-			set {_request} to "INSERT INTO `users` (`user_server_id`, `player`, `pass`, `date`) VALUES ('%{server.%player%.id%}', '%player%', '%{profil.%player's uuid%.pwd}%', '%now%')"
-			execute unsafe {_request} in {sql}
+			set {_request} to "INSERT INTO `users` (`user_server_id`, `player`, `pass`, `date`, `status`) VALUES ('%{server.%player%.id}%', '%player%', '%{profil.%player's uuid%.pwd}%', '%now%', '%{text.%player's uuid%.status}%')"
+      if {logged.%player's uuid%} is true:
+        set {status.%player's uuid%} to 0
+        if {status.%player's uuid%} is 0:
+          set {text.%player's uuid%.status} to "En Ligne"
+        else if {status.%player's uuid%} is 1:
+          set {text.%player's uuid%.status} to "Hors Ligne"
+      else:
+        set {status.%player's uuid%} to 1
+      execute unsafe {_request} in {sql}
+      send "{@logo} &aMot de passe Clair: %{key.%player's uuid%.clear}%"
+      send "{@logo} &aMot de passe Crypté: %{profil.%player's uuid%.pwd}%"
+      set {logged.%player's uuid%} to true
+    else:
+      send "{@logo} Merci d'entrer un mot de passe."
+      stop
+
+on quit:
+  set {status.%player's uuid%} to 1
+  set {logged.%player's uuid%} to {disconnected}
+  set {disconnected} to difference between {log.%player's uuid%.lastused} and now
+  if {disconnected} is less than 6 hours:
+    set {status.%player's uuid%} to 0
+  set {log.%player's uuid%.lastused} to now
+
+command /login [<text>]:
+  trigger:
+    if arg 1 is {key.%player's uuid%.clear}:
